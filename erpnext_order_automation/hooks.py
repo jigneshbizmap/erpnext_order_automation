@@ -137,13 +137,11 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+    "Sales Order": {
+        "after_insert": "erpnext_order_automation.erpnext_order_app.doctype.order_confirmation.order_confirmation.create_order_confirmation"
+    }
+}
 
 # Scheduled Tasks
 # ---------------

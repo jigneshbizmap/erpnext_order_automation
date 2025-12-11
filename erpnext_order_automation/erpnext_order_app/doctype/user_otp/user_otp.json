@@ -1,0 +1,162 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-12-04 09:46:27.635809",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "otp_details_section",
+  "email",
+  "otp",
+  "otp_status",
+  "otp_expiry",
+  "column_break_gupc",
+  "mobile_no",
+  "reference_doctype",
+  "reference_docname",
+  "generated__at",
+  "fraud_analysis__device_signals_section",
+  "ip_address",
+  "device_os",
+  "timezone",
+  "language_setting",
+  "overall_risk_score",
+  "column_break_zdns",
+  "approx_location",
+  "browser",
+  "screen_resolution",
+  "device_id_hash"
+ ],
+ "fields": [
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "otp",
+   "fieldtype": "Data",
+   "label": "OTP"
+  },
+  {
+   "fieldname": "otp_expiry",
+   "fieldtype": "Datetime",
+   "label": "OTP Expiry"
+  },
+  {
+   "fieldname": "otp_status",
+   "fieldtype": "Select",
+   "label": "OTP Status",
+   "options": "\nActive\nVerified\nExpired"
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "label": "Mobile No"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference Doctype",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_docname",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Docname",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "generated__at",
+   "fieldtype": "Datetime",
+   "label": "Generated_ At"
+  },
+  {
+   "fieldname": "column_break_gupc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "otp_details_section",
+   "fieldtype": "Section Break",
+   "label": "OTP Details"
+  },
+  {
+   "fieldname": "fraud_analysis__device_signals_section",
+   "fieldtype": "Section Break",
+   "label": "Fraud Analysis & Device Signals"
+  },
+  {
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "IP Address"
+  },
+  {
+   "fieldname": "approx_location",
+   "fieldtype": "Data",
+   "label": "Approx. Location"
+  },
+  {
+   "fieldname": "column_break_zdns",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "device_os",
+   "fieldtype": "Data",
+   "label": "Device / OS"
+  },
+  {
+   "fieldname": "browser",
+   "fieldtype": "Data",
+   "label": "Browser"
+  },
+  {
+   "fieldname": "timezone",
+   "fieldtype": "Data",
+   "label": "Timezone"
+  },
+  {
+   "fieldname": "screen_resolution",
+   "fieldtype": "Data",
+   "label": "Screen Resolution"
+  },
+  {
+   "fieldname": "language_setting",
+   "fieldtype": "Data",
+   "label": "Language Setting"
+  },
+  {
+   "fieldname": "device_id_hash",
+   "fieldtype": "Data",
+   "label": "Device ID (Hash)"
+  },
+  {
+   "fieldname": "overall_risk_score",
+   "fieldtype": "Data",
+   "label": "Overall Risk Score"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-12-09 14:06:12.618379",
+ "modified_by": "Administrator",
+ "module": "ERPNext Order App",
+ "name": "User OTP",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
