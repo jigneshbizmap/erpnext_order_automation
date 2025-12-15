@@ -1,83 +1,56 @@
 import frappe
 from frappe.utils import now_datetime, add_to_date
+from otp_generation.api import send_otp
+from otp_generation.api import validate_otp
+
 
 @frappe.whitelist(allow_guest=True)
-def store_otp(order_id, otp):
+def store_otp(order_id):
     order = frappe.get_doc("Order Confirmation", order_id)
 
-    mobile = order.contact_phone or ""
-    email = order.contact_email or ""
+    # Block if already verified
+    if order.custom_verified:
+        return {"status": "failed", "message": "Order already verified"}
 
-    # Check if there is already a Verified OTP for this order
-    verified_otp = frappe.db.exists(
-        "User OTP",
-        {
-            "reference_doctype": "Order Confirmation",
-            "reference_docname": order_id,
-            "otp_status": "Verified",
-        }
+
+    # 🔐 Send OTP using otp_generation
+    send_otp(
+        phone=order.contact_phone,
+        email=order.contact_email,
+        purpose=f"sign_up",
     )
 
-    if verified_otp:
+
+    return {"status": "success", "message": "OTP sent"}
+
+
+@frappe.whitelist(allow_guest=True)
+def verify_order_otp(order_id, otp_code):
+    from otp_generation.api import validate_otp
+
+    order = frappe.get_doc("Order Confirmation", order_id)
+
+    try:
+        # 🔐 Validate OTP using otp_generation
+        validate_otp(
+            otp_code=otp_code,
+            email=order.contact_email,
+            phone=order.contact_phone,
+            purpose="sign_up"
+        )
+
+        return {
+            "status": "success",
+            "verified": True
+        }
+
+    except frappe.ValidationError as e:
         return {
             "status": "failed",
-            "message": "OTP already verified for this order. No new OTP generated.",
-            "mobile_no": mobile,
+            "verified": False,
+            "message": str(e)
         }
 
-    # Expire previous Active OTPs for this order
-    frappe.db.set_value(
-        "User OTP",
-        {
-            "reference_doctype": "Order Confirmation",
-            "reference_docname": order_id,
-            "otp_status": "Active",
-        },
-        "otp_status",
-        "Expired",
-    )
-
-    expiry_time = add_to_date(now_datetime(), minutes=5)
-
-    otp_doc = frappe.get_doc(
-        {
-            "doctype": "User OTP",
-            "email": email,
-            "mobile_no": mobile,
-            "otp": otp,
-            "otp_expiry": expiry_time,
-            "otp_status": "Active",
-            "reference_doctype": "Order Confirmation",
-            "reference_docname": order_id,
-            "generated_at": now_datetime(),
-        }
-    )
-
-    otp_doc.insert(ignore_permissions=True)
-
-    return {
-        "status": "success",
-        "message": "OTP Stored Successfully",
-        "expires_in": "5 minutes",
-        "mobile_no": mobile,
-    }
-
-
-# @frappe.whitelist(allow_guest=True)
-# def mark_order_verified():
-#     order_id = frappe.request.headers.get("x-order-id")
-
-#     if not order_id:
-#         return {"status": "failed", "message": "Missing order ID"}
-
-#     order = frappe.get_doc("Order Confirmation", order_id)
-
-#     order.db_set("status", "Order Confirmed")
-
-
-#     frappe.db.commit()
-
-#     return {"status": "success", "message": "Order verified successfully"}
 
 
 @frappe.whitelist(allow_guest=True)
@@ -88,52 +61,19 @@ def mark_order_verified():
     if not order_id:
         return {"status": "failed", "message": "Missing order ID"}
 
-    data = frappe.request.get_data(as_text=True)
-    payload = json.loads(data) if data else {}
+
+    payload = json.loads(frappe.request.get_data(as_text=True) or "{}")
     fraud = payload.get("fraud_data", {})
 
-    # Mark order as confirmed
     order = frappe.get_doc("Order Confirmation", order_id)
-    order.status = "Order Confirmed"
     order.custom_verified = 1
+    order.status = "Order Confirmed"
     order.save(ignore_permissions=True)
 
-    # Get the latest active User OTP for this order
-    otp_name = frappe.db.get_value(
-        "User OTP",
-        {"reference_doctype": "Order Confirmation", "reference_docname": order_id, "otp_status": "Active"},
-        "name"
-    )
+    frappe.db.commit()
 
-    if otp_name:
-        otp_doc = frappe.get_doc("User OTP", otp_name)
+    return {"status": "success", "message": "Order verified & confirmed"}
 
-        # Save fraud fields
-        otp_doc.ip_address         = fraud.get("ip")
-        otp_doc.device_os          = fraud.get("device", {}).get("platform")
-        otp_doc.timezone           = fraud.get("device", {}).get("timezone")
-        otp_doc.language_setting   = fraud.get("device", {}).get("language")
-        otp_doc.overall_risk_score = fraud.get("riskScore")
-
-        geo = fraud.get("geo", {})
-        otp_doc.approx_location = f"{geo.get('city')}, {geo.get('region')}, {geo.get('country')}".strip(", ")
-
-        otp_doc.browser = fraud.get("device", {}).get("userAgent")
-
-        screen = fraud.get("device", {}).get("screen", {})
-        otp_doc.screen_resolution = f"{screen.get('width')}x{screen.get('height')}@{screen.get('colorDepth')}bit"
-
-        otp_doc.device_id_hash = fraud.get("fingerprint")
-
-        # Mark OTP as Verified to prevent reuse
-        otp_doc.otp_status = "Verified"
-
-        otp_doc.save(ignore_permissions=True)
-        frappe.db.commit()
-
-        return {"status": "success", "message": "Order verified, OTP updated & fraud data saved"}
-    else:
-        return {"status": "failed", "message": "No active OTP found for this order"}
 
 
 @frappe.whitelist()
@@ -152,3 +92,5 @@ def store_fraud_data(order_id, fraud_data):
     frappe.db.commit()
 
     return {"status": "success", "message": "Fraud data stored"}
+
+
