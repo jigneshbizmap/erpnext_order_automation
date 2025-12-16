@@ -2,26 +2,57 @@ import frappe
 from frappe.utils import now_datetime, add_to_date
 from otp_generation.api import send_otp
 from otp_generation.api import validate_otp
+from otp_generation.otp_generation.doctype.otp.otp import generate as generate_otp
+from otp_generation.otp_generation.doctype.otp.otp import verify as verify_otp
 
+# @frappe.whitelist(allow_guest=True)
+# def store_otp(order_id):
+#     order = frappe.get_doc("Order Confirmation", order_id)
+
+#     # Block if already verified
+#     if order.custom_verified:
+#         return {"status": "failed", "message": "Order already verified"}
+
+
+#     # 🔐 Send OTP using otp_generation
+#     send_otp(
+#         phone=order.contact_phone,
+#         email=order.contact_email,
+#         purpose=f"sign_up",
+#     )
+
+
+#     return {"status": "success", "message": "OTP sent"}
 
 @frappe.whitelist(allow_guest=True)
 def store_otp(order_id):
+    import requests
+
     order = frappe.get_doc("Order Confirmation", order_id)
 
-    # Block if already verified
     if order.custom_verified:
-        return {"status": "failed", "message": "Order already verified"}
+        frappe.throw("Order already verified")
 
-
-    # 🔐 Send OTP using otp_generation
-    send_otp(
-        phone=order.contact_phone,
+    #  Generate OTP (pure logic)
+    otp_result = generate_otp(
         email=order.contact_email,
-        purpose=f"sign_up",
+        phone=order.contact_phone,
+        purpose="sign_up",
     )
 
+    #  Send OTP to n8n
+    requests.post(
+        "https://roshan-n8n-1.app.n8n.cloud/webhook/generate-otp",
+        json={
+            "order_id": order.name,
+            "phone": order.contact_phone,
+            "otp": otp_result["otp_code"],
+        },
+        timeout=5
+    )
 
     return {"status": "success", "message": "OTP sent"}
+
 
 
 @frappe.whitelist(allow_guest=True)
