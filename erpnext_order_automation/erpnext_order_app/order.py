@@ -29,7 +29,7 @@ def store_otp(order_id):
 
     # Send to n8n
     requests.post(
-        "https://roshan-n8n-1.app.n8n.cloud/webhook/generate-otp",
+        "https://roshan-n8n-1.app.n8n.cloud/webhook/send-otp",
         json={
             "order_id": order.name,
             "phone": order.contact_phone,
