@@ -9,14 +9,6 @@ def shorten_url(long_url):
     Shorten a URL using is.gd or da.gd (free, no API key required)
     """
     try:
-        # Try is.gd first
-        # response = requests.get(
-        #     "https://is.gd/create.php",
-        #     params={"format": "simple", "url": long_url},
-        #     timeout=5
-        # )
-        # if response.status_code == 200:
-        #     return response.text.strip()
         
         # Fallback to da.gd if is.gd fails
         response = requests.get(
@@ -58,13 +50,33 @@ def create_order_confirmation(doc, method):
         ignore_permissions=True
     )
 
-    order_conf.insert()
-    frappe.db.commit()
+    # Create Order Confirmation
+    order_conf.insert(ignore_permissions=True)
 
     base_url = frappe.utils.get_url()   # MUST include :8003
     long_url = f"{base_url}/order-confirmation/{order_conf.name}"
-
     short_url = shorten_url(long_url)
 
     order_conf.confirmation_url = short_url
     order_conf.save(ignore_permissions=True)
+
+    # Send details to n8n (WhatsApp)
+    try:
+        requests.post(
+            "https://roshan-n8n-1.app.n8n.cloud/webhook/send-confirmation-details",
+            json={
+                "order_confirmation": order_conf.name,
+                "phone": order_conf.contact_phone,
+                "customer": order_conf.customer,
+                "company": order_conf.company,
+                "confirmation_url": order_conf.confirmation_url,
+            },
+            timeout=5
+        )
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "Order Confirmation Webhook Failed"
+        )
+
+    frappe.db.commit()

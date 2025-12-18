@@ -4,54 +4,43 @@ from otp_generation.api import send_otp
 from otp_generation.api import validate_otp
 from otp_generation.otp_generation.doctype.otp.otp import generate as generate_otp
 from otp_generation.otp_generation.doctype.otp.otp import verify as verify_otp
-
-# @frappe.whitelist(allow_guest=True)
-# def store_otp(order_id):
-#     order = frappe.get_doc("Order Confirmation", order_id)
-
-#     # Block if already verified
-#     if order.custom_verified:
-#         return {"status": "failed", "message": "Order already verified"}
-
-
-#     # 🔐 Send OTP using otp_generation
-#     send_otp(
-#         phone=order.contact_phone,
-#         email=order.contact_email,
-#         purpose=f"sign_up",
-#     )
-
-
-#     return {"status": "success", "message": "OTP sent"}
+import requests
 
 @frappe.whitelist(allow_guest=True)
 def store_otp(order_id):
-    import requests
 
     order = frappe.get_doc("Order Confirmation", order_id)
 
     if order.custom_verified:
         frappe.throw("Order already verified")
 
-    #  Generate OTP (pure logic)
+    # Generate OTP (external app untouched)
     otp_result = generate_otp(
         email=order.contact_email,
         phone=order.contact_phone,
         purpose="sign_up",
     )
 
-    #  Send OTP to n8n
+    # Attach reference safely
+    otp_doc = frappe.get_doc("OTP", otp_result["name"])
+    otp_doc.custom_reference_doctype = "Order Confirmation"
+    otp_doc.custom_reference_docname = order.name
+    otp_doc.save(ignore_permissions=True)
+
+    # Send to n8n
     requests.post(
         "https://roshan-n8n-1.app.n8n.cloud/webhook/generate-otp",
         json={
             "order_id": order.name,
             "phone": order.contact_phone,
             "otp": otp_result["otp_code"],
+            "otp_name": otp_result["name"],
         },
         timeout=5
     )
 
     return {"status": "success", "message": "OTP sent"}
+
 
 
 
@@ -93,13 +82,27 @@ def mark_order_verified():
         return {"status": "failed", "message": "Missing order ID"}
 
 
-    payload = json.loads(frappe.request.get_data(as_text=True) or "{}")
-    fraud = payload.get("fraud_data", {})
-
     order = frappe.get_doc("Order Confirmation", order_id)
     order.custom_verified = 1
     order.status = "Order Confirmed"
     order.save(ignore_permissions=True)
+    try:
+        requests.post(
+            "https://roshan-n8n-1.app.n8n.cloud/webhook/order-confirmed-details",
+            json={
+                "order_confirmation": order.name,
+                "customer": order.customer,
+                "phone": order.contact_phone,
+                "company": order.company,
+                "confirmation_url": order.confirmation_url
+            },
+            timeout=5
+        )
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "Order Confirmed Webhook Failed"
+        )
 
     frappe.db.commit()
 
